@@ -1,137 +1,111 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ฝากขยะ</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ฝากขยะ</title>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <style>
-    body{font-family:system-ui,Arial;background:#eef3f7;margin:0;padding:16px;font-size:18px}
-    .card{background:#fff;border-radius:18px;padding:18px;max-width:520px;margin:0 auto;box-shadow:0 6px 18px rgba(0,0,0,.08)}
-    .title{font-size:26px;font-weight:900;text-align:center;margin:6px 0 12px}
-    .name{font-size:18px;text-align:center;color:#222;background:#f6f8fa;border-radius:12px;padding:8px;margin-bottom:12px}
-    .step{font-size:18px;font-weight:700;margin-top:10px}
-    input{width:100%;padding:12px;border-radius:12px;border:1px solid #ccc;margin-top:6px;font-size:16px}
-    .btn{width:100%;background:#06c755;color:#fff;border:0;border-radius:14px;font-size:20px;font-weight:700;padding:14px;margin-top:16px}
-    .btn:disabled{opacity:.7}
-    .preview{max-width:100%;border-radius:12px;margin-top:10px;display:none}
-    #status{margin-top:10px;text-align:center;font-size:14px;color:#333;min-height:20px}
-  </style>
+<style>
+body{font-family:system-ui;background:#eef3f7;margin:0;padding:16px}
+.card{background:#fff;border-radius:18px;padding:20px;max-width:520px;margin:auto;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.title{font-size:26px;font-weight:900;text-align:center;margin-bottom:10px}
+.name{text-align:center;background:#f5f7fa;padding:8px;border-radius:10px;margin-bottom:10px}
+.step{font-weight:700;margin-top:10px}
+input{width:100%;padding:12px;border-radius:12px;border:1px solid #ccc;margin-top:6px}
+.btn{width:100%;background:#06c755;color:#fff;border:0;border-radius:14px;font-size:20px;font-weight:700;padding:14px;margin-top:16px}
+.btn.loading{background:#999}
+.loader{border:3px solid #eee;border-top:3px solid #06c755;border-radius:50%;width:22px;height:22px;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+#status{text-align:center;margin-top:10px;font-size:14px}
+.preview{max-width:100%;border-radius:12px;margin-top:10px;display:none}
+</style>
 </head>
 
 <body>
 <div class="card">
-  <div class="title">📦 ฝากขยะ</div>
+<div class="title">📦 ฝากขยะ</div>
+<div id="who" class="name">กำลังโหลด...</div>
 
-  <div id="who" class="name">กำลังโหลด...</div>
+<div class="step">📷 ถ่ายรูป</div>
+<input type="file" id="photo" accept="image/*" capture="environment">
+<img id="preview" class="preview">
 
-  <div class="step">📷 ถ่ายรูปขยะ</div>
-  <input type="file" id="photo" accept="image/*" capture="environment" />
-  <img id="preview" class="preview" />
+<div class="step">⚖️ น้ำหนัก (กก.)</div>
+<input type="number" id="weight" step="0.01">
 
-  <div class="step">⚖️ น้ำหนัก (กก.)</div>
-  <input type="number" id="weight" placeholder="เช่น 1.50" step="0.01" />
-
-  <button class="btn" id="submitBtn" onclick="submitData()">ส่งข้อมูล</button>
-  <div id="status"></div>
+<button id="submitBtn" class="btn" onclick="submitData()">ส่งข้อมูล</button>
+<div id="status"></div>
 </div>
 
 <script>
-const LIFF_ID = "2009222279-hD8AGu5R";
-const GAS_URL = "https://script.google.com/macros/s/AKfycby89i23f9-_GlbxwhzQUJ_Ale-nctOoM86afx22DbvS0743R25ZDN_xePFYOyRMqYbC/exec";
+const LIFF_ID="2009222279-hD8AGu5R";
+const GAS_URL="https://script.google.com/macros/s/AKfycby89i23f9-_GlbxwhzQUJ_Ale-nctOoM86afx22DbvS0743R25ZDN_xePFYOyRMqYbC/exec";
 
-let userId = "";
-let displayName = "";
+let userId="",displayName="";
 
-document.getElementById("photo").onchange = (e) => {
-  const img = document.getElementById("preview");
-  if (e.target.files && e.target.files[0]) {
-    img.src = URL.createObjectURL(e.target.files[0]);
-    img.style.display = "block";
-  }
+document.getElementById("photo").onchange=e=>{
+const img=document.getElementById("preview");
+img.src=URL.createObjectURL(e.target.files[0]);
+img.style.display="block";
 };
 
-(async () => {
-  await liff.init({ liffId: LIFF_ID });
-  if (!liff.isLoggedIn()) { liff.login(); return; }
-  const p = await liff.getProfile();
-  userId = p.userId;
-  displayName = p.displayName;
-  document.getElementById("who").textContent = "👤 " + displayName;
+(async()=>{
+await liff.init({liffId:LIFF_ID});
+if(!liff.isLoggedIn()){liff.login();return;}
+const p=await liff.getProfile();
+userId=p.userId;
+displayName=p.displayName;
+document.getElementById("who").textContent="👤 "+displayName;
 })();
 
 async function submitData(){
-  const file = document.getElementById("photo").files[0];
-  const weightStr = document.getElementById("weight").value;
-  const weightNum = Number(weightStr);
+const file=document.getElementById("photo").files[0];
+const weight=document.getElementById("weight").value;
+const btn=document.getElementById("submitBtn");
+const status=document.getElementById("status");
 
-  const btn = document.getElementById("submitBtn");
-  const statusEl = document.getElementById("status");
+if(!file){alert("ถ่ายรูปก่อน");return;}
+if(!weight){alert("ใส่น้ำหนัก");return;}
 
-  if(!file){ alert("กรุณาถ่ายรูป"); return; }
-  if(!weightStr || !(weightNum > 0)){ alert("ใส่น้ำหนักให้ถูกต้อง"); return; }
+btn.disabled=true;
+btn.classList.add("loading");
+btn.innerHTML='<span class="loader"></span>กำลังส่ง...';
+status.textContent="กำลังอัปโหลดรูปและบันทึกข้อมูล กรุณารอสักครู่";
 
-  // UI: เริ่มส่ง
-  btn.disabled = true;
-  const oldText = btn.textContent;
-  btn.textContent = "⏳ กำลังส่ง...";
-  statusEl.textContent = "กำลังอัปโหลดรูปและบันทึกข้อมูล...";
+try{
+const base64=await new Promise(res=>{
+const r=new FileReader();
+r.onload=()=>res(r.result);
+r.readAsDataURL(file);
+});
 
-  try{
-    const base64 = await new Promise((res, reject) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
+const payload={
+displayName,
+userId,
+weightKg:Number(weight),
+imageData:base64
+};
 
-    const payload = {
-      displayName,
-      userId,
-      weightKg: weightNum,
-      imageData: base64
-    };
+const body=new URLSearchParams();
+body.append("payload",JSON.stringify(payload));
 
-    const body = new URLSearchParams();
-    body.append("payload", JSON.stringify(payload));
+await fetch(GAS_URL,{method:"POST",body});
 
-    const resp = await fetch(GAS_URL, { method:"POST", body });
+status.textContent="✅ ส่งข้อมูลเรียบร้อยแล้ว";
+btn.innerHTML="✅ สำเร็จ";
 
-    // พยายามอ่านผลกลับ ถ้าอ่านไม่ได้ก็เช็ค resp.ok
-    let ok = true;
-    try{
-      const j = await resp.json();
-      ok = !!j.ok;
-      if(!ok) throw new Error(j.error || "unknown_error");
-    }catch(_){
-      if (!resp.ok) throw new Error("http_error_" + resp.status);
-    }
+setTimeout(()=>{
+if(liff.isInClient()) liff.closeWindow();
+},800);
 
-    // ✅ ส่งข้อความเข้าแชท LINE (ไม่ให้พัง ถ้าส่งไม่ได้ก็ข้าม)
-    try{
-      if (liff.isInClient() && typeof liff.sendMessages === "function") {
-        await liff.sendMessages([{
-          type: "text",
-          text: `ฝากขยะ ${weightNum.toFixed(2)} กก. สำเร็จ ✅`
-        }]);
-      }
-    } catch(_) {}
-
-    // UI: สำเร็จ
-    statusEl.textContent = "✅ ส่งข้อมูลเรียบร้อยแล้ว";
-    btn.textContent = "✅ ส่งแล้ว";
-
-    setTimeout(()=>{
-      if(liff.isInClient()) liff.closeWindow();
-    }, 700);
-
-  }catch(e){
-    statusEl.textContent = "❌ ส่งไม่สำเร็จ: " + (e && e.message ? e.message : e);
-    btn.disabled = false;
-    btn.textContent = oldText;
-  }
+}catch(e){
+status.textContent="❌ ส่งไม่สำเร็จ";
+btn.disabled=false;
+btn.classList.remove("loading");
+btn.innerHTML="ส่งข้อมูล";
+}
 }
 </script>
 </body>
