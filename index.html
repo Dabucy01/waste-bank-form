@@ -15,7 +15,9 @@
     .step{font-size:18px;font-weight:700;margin-top:10px}
     input{width:100%;padding:12px;border-radius:12px;border:1px solid #ccc;margin-top:6px;font-size:16px}
     .btn{width:100%;background:#06c755;color:#fff;border:0;border-radius:14px;font-size:20px;font-weight:700;padding:14px;margin-top:16px}
+    .btn:disabled{opacity:.7}
     .preview{max-width:100%;border-radius:12px;margin-top:10px;display:none}
+    #status{margin-top:10px;text-align:center;font-size:14px;color:#333;min-height:20px}
   </style>
 </head>
 
@@ -32,56 +34,104 @@
   <div class="step">⚖️ น้ำหนัก (กก.)</div>
   <input type="number" id="weight" placeholder="เช่น 1.50" step="0.01" />
 
-  <button class="btn" onclick="submitData()">ส่งข้อมูล</button>
+  <button class="btn" id="submitBtn" onclick="submitData()">ส่งข้อมูล</button>
+  <div id="status"></div>
 </div>
 
 <script>
 const LIFF_ID = "2009222279-hD8AGu5R";
 const GAS_URL = "https://script.google.com/macros/s/AKfycby89i23f9-_GlbxwhzQUJ_Ale-nctOoM86afx22DbvS0743R25ZDN_xePFYOyRMqYbC/exec";
 
-let userId="",displayName="";
+let userId = "";
+let displayName = "";
 
-document.getElementById("photo").onchange=e=>{
-  const img=document.getElementById("preview");
-  img.src=URL.createObjectURL(e.target.files[0]);
-  img.style.display="block";
+document.getElementById("photo").onchange = (e) => {
+  const img = document.getElementById("preview");
+  if (e.target.files && e.target.files[0]) {
+    img.src = URL.createObjectURL(e.target.files[0]);
+    img.style.display = "block";
+  }
 };
 
-(async()=>{
-  await liff.init({liffId:LIFF_ID});
-  if(!liff.isLoggedIn()){liff.login();return;}
-  const p=await liff.getProfile();
-  userId=p.userId;
-  displayName=p.displayName;
-  document.getElementById("who").textContent="👤 "+displayName;
+(async () => {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  const p = await liff.getProfile();
+  userId = p.userId;
+  displayName = p.displayName;
+  document.getElementById("who").textContent = "👤 " + displayName;
 })();
 
 async function submitData(){
-  const file=document.getElementById("photo").files[0];
-  const weight=document.getElementById("weight").value;
+  const file = document.getElementById("photo").files[0];
+  const weightStr = document.getElementById("weight").value;
+  const weightNum = Number(weightStr);
 
-  if(!file){alert("กรุณาถ่ายรูป");return;}
-  if(!weight){alert("ใส่น้ำหนัก");return;}
+  const btn = document.getElementById("submitBtn");
+  const statusEl = document.getElementById("status");
 
-  const base64=await new Promise(res=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result);
-    r.readAsDataURL(file);
-  });
+  if(!file){ alert("กรุณาถ่ายรูป"); return; }
+  if(!weightStr || !(weightNum > 0)){ alert("ใส่น้ำหนักให้ถูกต้อง"); return; }
 
-  const payload={
-    displayName,
-    userId,
-    weightKg:Number(weight),
-    imageData:base64
-  };
+  // UI: เริ่มส่ง
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = "⏳ กำลังส่ง...";
+  statusEl.textContent = "กำลังอัปโหลดรูปและบันทึกข้อมูล...";
 
-  const body=new URLSearchParams();
-  body.append("payload",JSON.stringify(payload));
+  try{
+    const base64 = await new Promise((res, reject) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
 
-  await fetch(GAS_URL,{method:"POST",body});
-  alert("ส่งข้อมูลแล้ว");
-  if(liff.isInClient())liff.closeWindow();
+    const payload = {
+      displayName,
+      userId,
+      weightKg: weightNum,
+      imageData: base64
+    };
+
+    const body = new URLSearchParams();
+    body.append("payload", JSON.stringify(payload));
+
+    const resp = await fetch(GAS_URL, { method:"POST", body });
+
+    // พยายามอ่านผลกลับ ถ้าอ่านไม่ได้ก็เช็ค resp.ok
+    let ok = true;
+    try{
+      const j = await resp.json();
+      ok = !!j.ok;
+      if(!ok) throw new Error(j.error || "unknown_error");
+    }catch(_){
+      if (!resp.ok) throw new Error("http_error_" + resp.status);
+    }
+
+    // ✅ ส่งข้อความเข้าแชท LINE (ไม่ให้พัง ถ้าส่งไม่ได้ก็ข้าม)
+    try{
+      if (liff.isInClient() && typeof liff.sendMessages === "function") {
+        await liff.sendMessages([{
+          type: "text",
+          text: `ฝากขยะ ${weightNum.toFixed(2)} กก. สำเร็จ ✅`
+        }]);
+      }
+    } catch(_) {}
+
+    // UI: สำเร็จ
+    statusEl.textContent = "✅ ส่งข้อมูลเรียบร้อยแล้ว";
+    btn.textContent = "✅ ส่งแล้ว";
+
+    setTimeout(()=>{
+      if(liff.isInClient()) liff.closeWindow();
+    }, 700);
+
+  }catch(e){
+    statusEl.textContent = "❌ ส่งไม่สำเร็จ: " + (e && e.message ? e.message : e);
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
 }
 </script>
 </body>
